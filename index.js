@@ -8,12 +8,13 @@ var gutil           = require('gulp-util'),
 var PLUGIN_NAME = 'gulp-css-grader';
 
 
-module.exports = function() {
+/*module.exports = function() {
     return through.obj(function(file, encoding, callback) {
         if (file.isNull()) {
-            // nothing to do
             return callback(null, file);
         }
+
+        console.log(file);
 
         if (file.isStream()) {
             // file.contents is a Stream - https://nodejs.org/api/stream.html
@@ -31,7 +32,35 @@ module.exports = function() {
             //return callback(null, file);
         }
     });
-};
+};*/
+
+function gulpcssgrader(options) {
+    var stream = new Transform({ objectMode: true });
+
+    if (typeof options === 'string') {
+        options = { basefile: options };
+    }
+
+    if (typeof options.basefile === 'undefined') {
+        stream.emit('error', new gutil.PluginError(PLUGIN_NAME, 'A base file path is required as the only argument or as an option { basefile: \'...\' }'));
+    }
+
+    stream._transform = function(file, unused, done) {
+        /*var callback = function(rhs) { return doDiff(rhs, options); };
+        // Pass through if null
+        if (file.isNull()) {
+            stream.push(file);
+            done();
+            return;
+        }
+        if (file.isStream()) {
+            Loader.stream(file, callback, stream, done);
+        } else {
+            Loader.string(file, callback, stream, done);
+        }*/
+    };
+    return stream;
+}
 
 
-//module.exports = gulpcssoverrides;
+module.exports = gulpcssgrader;
