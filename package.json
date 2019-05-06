@@ -1,0 +1,26 @@
+{
+  "name": "gulp-css-grader",
+  "version": "1.0.0",
+  "description": "Grader css property by user wish",
+  "main": "index.js",
+  "author": "Nikita Gladkov",
+  "license": "MIT",
+  "dependencies": {
+    "gulp-util": "^3.0.7",
+    "through2": "^2.0.0"
+  },
+  "scripts": {
+    "test": "test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PandaTamara/gulp-css-grader.git"
+  },
+  "keywords": [
+    "gulp-plugin"
+  ],
+  "bugs": {
+    "url": "https://github.com/PandaTamara/gulp-css-grader/issues"
+  },
+  "homepage": "https://github.com/PandaTamara/gulp-css-grader#readme"
+}
