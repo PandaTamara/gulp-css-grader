@@ -1,66 +1,116 @@
 'use strict';
 
-var gutil           = require('gulp-util'),
-    Transform       = require('stream').Transform,
-    PluginError     = gutil.PluginError,
-    through         = require('through2');
-
 var PLUGIN_NAME = 'gulp-css-grader';
 
+var gutil           = require('gulp-util'),
+    pluginError     = gutil.PluginError,
+    through         = require('through2'),
+    postcss         = require('postcss'),
+    lodash          = require('lodash.merge');
 
-/*module.exports = function() {
-    return through.obj(function(file, encoding, callback) {
+
+var gulpcssgrader = function (action, options) {
+    options = options || {};
+
+    return through.obj(function(file, enc, callback) {
         if (file.isNull()) {
             return callback(null, file);
         }
 
-        console.log(file);
-
         if (file.isStream()) {
-            // file.contents is a Stream - https://nodejs.org/api/stream.html
-            this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
-
-            // or, if you can handle Streams:
-            //file.contents = file.contents.pipe(...
-            //return callback(null, file);
-        } else if (file.isBuffer()) {
-            // file.contents is a Buffer - https://nodejs.org/api/buffer.html
-            this.emit('error', new PluginError(PLUGIN_NAME, 'Buffers not supported!'));
-
-            // or, if you can handle Buffers:
-            //file.contents = ...
-            //return callback(null, file);
+            this.emit('error', new pluginError(PLUGIN_NAME, 'This plugin not supported Streams!'));
         }
+
+        if (file.isBuffer()) {
+            var parsed = _parseCss(new String(file.contents)),
+                processed = {};
+
+            Object.keys(parsed).forEach(function (selector) {
+                Object.keys(parsed[selector]).forEach(function (prop) {
+                    switch (action) {
+                        case 'get' : {
+                            if (options.properties.indexOf(prop) !== -1) {
+                                processed = _collectProp(processed, selector, prop, parsed[selector][prop]);
+                            }
+                            break;
+                        }
+                        case 'remove' : {
+                            if (options.properties.indexOf(prop) === -1) {
+                                processed = _collectProp(processed, selector, prop, parsed[selector][prop]);
+                            }
+                            break;
+                        }
+                    }
+                });
+            });
+
+            file.contents = Buffer.from(_toString(processed));
+            return callback(null, file);
+        }
+
+        callback(null, file);
     });
-};*/
+};
 
-function gulpcssgrader(options) {
-    var stream = new Transform({ objectMode: true });
-
-    if (typeof options === 'string') {
-        options = { basefile: options };
+function _collectProp(obj, selector, prop, value) {
+    if (obj[selector]) {
+        obj[selector][prop] = value;
+    } else {
+        obj[selector] = _defineProperty({}, prop, value);
     }
 
-    if (typeof options.basefile === 'undefined') {
-        stream.emit('error', new gutil.PluginError(PLUGIN_NAME, 'A base file path is required as the only argument or as an option { basefile: \'...\' }'));
-    }
-
-    stream._transform = function(file, unused, done) {
-        /*var callback = function(rhs) { return doDiff(rhs, options); };
-        // Pass through if null
-        if (file.isNull()) {
-            stream.push(file);
-            done();
-            return;
-        }
-        if (file.isStream()) {
-            Loader.stream(file, callback, stream, done);
-        } else {
-            Loader.string(file, callback, stream, done);
-        }*/
-    };
-    return stream;
+    return obj;
 }
 
+function _parseCss(css) {
+    var ast = (0, postcss.parse)(css);
+    var result = {};
+
+    ast.nodes.forEach(function (node) {
+        if (node.type === 'rule') {
+            (function () {
+                var declarations = {};
+
+                node.nodes.forEach(function (dcl) {
+                    if (dcl.type !== 'decl') {
+                        return;
+                    }
+
+                    declarations[dcl.prop] = dcl.value + (typeof dcl.important !== 'undefined' ? ' !important' : '');
+                });
+
+                result = (0, lodash)(result, _defineProperty({}, node.selector, declarations));
+            })();
+        }
+    });
+
+    return result;
+}
+
+function _toString(css) {
+    var result = '';
+
+    Object.keys(css).forEach(function (selector) {
+        result = '' + result + selector + ' {\n';
+
+        Object.keys(css[selector]).forEach(function (prop) {
+            result = result + '  ' + prop + ': ' + css[selector][prop] + ';\n';
+        });
+
+        result = result + '}\n';
+    });
+
+    return result;
+};
+
+
+function _defineProperty(obj, key, value) {
+    if (key in obj) {
+        Object.defineProperty(obj, key, {value: value, enumerable: true, configurable: true, writable: true});
+    } else {
+        obj[key] = value;
+    }
+    return obj;
+}
 
 module.exports = gulpcssgrader;
