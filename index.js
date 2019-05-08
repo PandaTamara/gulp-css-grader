@@ -5,8 +5,8 @@ var PLUGIN_NAME = 'gulp-css-grader';
 var gutil           = require('gulp-util'),
     pluginError     = gutil.PluginError,
     through         = require('through2'),
-    postcss         = require('postcss'),
-    lodash          = require('lodash.merge');
+    stringifyCss    = require('css-stringify'),
+    parseCss        = require('css-parse');
 
 
 var gulpcssgrader = function (action, options) {
@@ -22,29 +22,26 @@ var gulpcssgrader = function (action, options) {
         }
 
         if (file.isBuffer()) {
-            var parsed = _parseCss(new String(file.contents)),
-                processed = {};
+            var parsed = parseCss(new String(file.contents));
 
-            Object.keys(parsed).forEach(function (selector) {
-                Object.keys(parsed[selector]).forEach(function (prop) {
-                    switch (action) {
-                        case 'get' : {
-                            if (options.properties.indexOf(prop) !== -1) {
-                                processed = _collectProp(processed, selector, prop, parsed[selector][prop]);
-                            }
-                            break;
-                        }
-                        case 'remove' : {
-                            if (options.properties.indexOf(prop) === -1) {
-                                processed = _collectProp(processed, selector, prop, parsed[selector][prop]);
-                            }
-                            break;
-                        }
-                    }
-                });
+            parsed.stylesheet.rules.forEach(function (node) {
+                /**
+                 * Media Query
+                 */
+                if (node.type === 'media') {
+                    node.rules.forEach(function (rule) {
+                        rule.declarations = _transformDeclarations(rule.declarations, action, options);
+                    })
+                }
+                /***
+                 * Simple Css rules
+                 */
+                if (node.type === 'rule') {
+                    node.declarations = _transformDeclarations(node.declarations, action, options);
+                }
             });
 
-            file.contents = Buffer.from(_toString(processed));
+            file.contents = Buffer.from(stringifyCss(parsed));
             return callback(null, file);
         }
 
@@ -52,65 +49,37 @@ var gulpcssgrader = function (action, options) {
     });
 };
 
-function _collectProp(obj, selector, prop, value) {
-    if (obj[selector]) {
-        obj[selector][prop] = value;
-    } else {
-        obj[selector] = _defineProperty({}, prop, value);
-    }
 
-    return obj;
-}
+/**
+ * TODO move actions to lib
+ * transform css property collections
+ * @param ruleDeclarations
+ * @param action
+ * @param options
+ * @returns {Array}
+ * @private
+ */
+function _transformDeclarations(ruleDeclarations, action, options) {
+    var declarations = [];
 
-function _parseCss(css) {
-    var ast = (0, postcss.parse)(css);
-    var result = {};
-
-    ast.nodes.forEach(function (node) {
-        if (node.type === 'rule') {
-            (function () {
-                var declarations = {};
-
-                node.nodes.forEach(function (dcl) {
-                    if (dcl.type !== 'decl') {
-                        return;
-                    }
-
-                    declarations[dcl.prop] = dcl.value + (typeof dcl.important !== 'undefined' ? ' !important' : '');
-                });
-
-                result = (0, lodash)(result, _defineProperty({}, node.selector, declarations));
-            })();
+    ruleDeclarations.forEach(function (declaration) {
+        switch (action) {
+            case 'get' : {
+                if (options.properties.indexOf(declaration.property) !== -1) {
+                    declarations.push(declaration);
+                }
+                break;
+            }
+            case 'remove' : {
+                if (options.properties.indexOf(declaration.property) === -1) {
+                    declarations.push(declaration);
+                }
+                break;
+            }
         }
     });
 
-    return result;
-}
-
-function _toString(css) {
-    var result = '';
-
-    Object.keys(css).forEach(function (selector) {
-        result = '' + result + selector + ' {\n';
-
-        Object.keys(css[selector]).forEach(function (prop) {
-            result = result + '  ' + prop + ': ' + css[selector][prop] + ';\n';
-        });
-
-        result = result + '}\n';
-    });
-
-    return result;
-};
-
-
-function _defineProperty(obj, key, value) {
-    if (key in obj) {
-        Object.defineProperty(obj, key, {value: value, enumerable: true, configurable: true, writable: true});
-    } else {
-        obj[key] = value;
-    }
-    return obj;
+    return declarations;
 }
 
 module.exports = gulpcssgrader;

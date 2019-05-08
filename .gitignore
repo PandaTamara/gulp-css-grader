@@ -3,5 +3,6 @@ test/
 node_modules/
 npm-debug.log
 todo.txt
+PUBLISH.md
 dist/
 *.sublime-*

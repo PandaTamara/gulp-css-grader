@@ -1,15 +1,15 @@
 {
   "name": "gulp-css-grader",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Grader css property by user wish",
   "main": "index.js",
   "author": "Nikita Gladkov",
   "license": "MIT",
   "dependencies": {
+    "css-parse": "^2.0.0",
+    "css-stringify": "^2.0.0",
     "gulp-util": "^3.0.7",
-    "through2": "^2.0.0",
-    "lodash.merge": "^4.4.0",
-    "postcss": "^5.0.21"
+    "through2": "^2.0.0"
   },
   "devDependencies": {
     "mocha": "^2.4.4",

@@ -13,6 +13,8 @@ var gulpCssGrader = require('./'),
  */
 var baseStylePath = 'test/input/dashboard.css';
 
+baseStylePath = 'test/input/media-query.css';
+
 
 /**
  * Test task
