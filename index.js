@@ -8,13 +8,18 @@ var gutil           = require('gulp-util'),
     stringifyCss    = require('css-stringify'),
     parseCss        = require('css-parse');
 
-
+/**
+ * Init magic
+ * @param action - get or remove
+ * @param options - array of css properties
+ * @returns {*}
+ */
 var gulpcssgrader = function (action, options) {
     options = options || {};
 
-    return through.obj(function(file, enc, callback) {
+    return through.obj(function(file, enc, cb) {
         if (file.isNull()) {
-            return callback(null, file);
+            return cb(null, file);
         }
 
         if (file.isStream()) {
@@ -22,36 +27,66 @@ var gulpcssgrader = function (action, options) {
         }
 
         if (file.isBuffer()) {
-            var parsed = parseCss(new String(file.contents));
+            var parsed = parseCss(String(file.contents)),
+                gradedRules = [];
 
             parsed.stylesheet.rules.forEach(function (node) {
                 /**
-                 * Media Query
+                 * Media Query block
                  */
                 if (node.type === 'media') {
-                    node.rules.forEach(function (rule) {
-                        rule.declarations = _transformDeclarations(rule.declarations, action, options);
-                    })
+                    if (!(node.rules = _transformRules(node.rules, action, options)).length) {
+                        return;
+                    }
                 }
                 /***
                  * Simple Css rules
                  */
                 if (node.type === 'rule') {
-                    node.declarations = _transformDeclarations(node.declarations, action, options);
+                    if (!(node.declarations = _transformDeclarations(node.declarations, action, options)).length) {
+                        return;
+                    }
                 }
+
+                gradedRules.push(node);
             });
 
+            /**
+             * Set new rules
+             * @type {Array}
+             */
+            parsed.stylesheet.rules = gradedRules;
+
             file.contents = Buffer.from(stringifyCss(parsed));
-            return callback(null, file);
+            return cb(null, file);
         }
 
-        callback(null, file);
+        cb(null, file);
     });
 };
 
+/**
+ *
+ * @param nodeRules
+ * @param action
+ * @param options
+ * @returns {Array}
+ * @private
+ */
+function _transformRules(nodeRules, action, options) {
+    var rules = [];
+
+    nodeRules.forEach(function (rule) {
+        rule.declarations = _transformDeclarations(rule.declarations, action, options);
+
+        if (rule.declarations.length) {
+            rules.push(rule);
+        }
+    });
+    return rules;
+}
 
 /**
- * TODO move actions to lib
  * transform css property collections
  * @param ruleDeclarations
  * @param action
